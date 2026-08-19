@@ -1,90 +1,182 @@
 import telebot
 from telebot import types
 
-# Ваш токен от BotFather
+# --- НАСТРОЙКИ БОТА ---
 TOKEN = '7652251280:AAED0e482EhSbiD6jnIyduDOZbXQMsqTNUo'
+# Токен провайдера оплат (Stripe, YooMoney, PayMaster и т.д. получаем в @BotFather)
+# Если пока нет токена для боевой оплаты, можно использовать тестовый (TEST).
+PROVIDER_TOKEN = 'ТВОЙ_ПЛАТЕЖНЫЙ_ТОКЕН_ИЗ_BOTFATHER' 
+ADMIN_ID = 'ТВОЙ_TELEGRAM_ID' # Твой ID (узнай его через @userinfobot), чтобы получать уведомления об оплате
+
 bot = telebot.TeleBot(TOKEN)
 
-# Обработчик команды /start
+# --- БАЗА ДАННЫХ УСЛУГ (Прайс-лист) ---
+SERVICES = {
+    'landing': {'name': 'Landing Page', 'price': 50, 'desc': 'Одностраничный сайт с высокой конверсией. Идеально для продажи одного продукта или услуги.'},
+    'corp': {'name': 'Корпоративный сайт', 'price': 150, 'desc': 'Многостраничный сайт компании. Представительство вашего бизнеса в сети.'},
+    'ecom': {'name': 'E-commerce', 'price': 250, 'desc': 'Полноценный интернет-магазин с корзиной, каталогом и системой оплаты.'},
+    'portfolio': {'name': 'Portfolio', 'price': 40, 'desc': 'Красивый сайт-визитка для демонстрации ваших работ и навыков.'},
+    'blog': {'name': 'Blog', 'price': 80, 'desc': 'Платформа для публикации статей, новостей и взаимодействия с аудиторией.'},
+    'frontend': {'name': 'Только Frontend', 'price': 50, 'desc': 'Качественная верстка по вашему дизайну (Figma/Photoshop).'},
+    'custom': {'name': 'Custom Проект', 'price': 100, 'desc': 'Индивидуальная разработка. (Цена указана как депозит для старта работы).'}
+}
+
+# --- ГЛАВНОЕ МЕНЮ ---
+def get_main_menu():
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    btn1 = types.InlineKeyboardButton("🛒 Заказать сайт", callback_data="menu_order")
+    btn2 = types.InlineKeyboardButton("💵 Прайс-лист", callback_data="menu_pricing")
+    btn3 = types.InlineKeyboardButton("📁 Портфолио", callback_data="menu_portfolio")
+    btn4 = types.InlineKeyboardButton("📞 Контакты", callback_data="menu_contact")
+    markup.add(btn1)
+    markup.add(btn2, btn3)
+    markup.add(btn4)
+    return markup
+
+# --- ОБРАБОТЧИКИ КОМАНД ---
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     text = (
-        "👋 Welcome to WebOrder Bot!\n"
-        "I can help you order custom websites.\n\n"
-        "📋 Commands:\n"
-        "/order - Start a new website order\n"
-        "/portfolio - View our work\n"
-        "/pricing - See pricing options\n"
-        "/contact - Contact information"
+        "👋 <b>Добро пожаловать в WebOrder Bot!</b>\n\n"
+        "Я помогу вам быстро и удобно заказать разработку сайта у профессионала. "
+        "Выберите нужный раздел в меню ниже, чтобы начать."
     )
-    bot.send_message(message.chat.id, text)
+    bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=get_main_menu())
 
-# Обработчик команды /portfolio
-@bot.message_handler(commands=['portfolio'])
-def send_portfolio(message):
-    text = "Мои работы и проекты вы можете посмотреть на моем GitHub аккаунте: \n👉 https://github.com/Farrux-Developer"
-    bot.send_message(message.chat.id, text, disable_web_page_preview=True)
+# --- ОБРАБОТКА НАЖАТИЙ НА КНОПКИ (CALLBACK) ---
+@bot.callback_query_handler(func=lambda call: True)
+def handle_query(call):
+    chat_id = call.message.chat.id
+    message_id = call.message.message_id
 
-# Обработчик команды /pricing
-@bot.message_handler(commands=['pricing'])
-def send_pricing(message):
-    # Цены примерные, вы сможете поменять их в любой момент
-    text = (
-        "💵 Примерная стоимость сайтов:\n\n"
-        "1️⃣ Landing Page - от $50\n"
-        "2️⃣ Корпоративный сайт - от $150\n"
-        "3️⃣ E-commerce - от $250\n"
-        "4️⃣ Portfolio - от $40\n"
-        "5️⃣ Blog - от $80\n"
-        "6️⃣ Frontend - от $50\n"
-        "7️⃣ Custom - обсуждается индивидуально\n\n"
-        "Точная стоимость рассчитывается после обсуждения деталей проекта. Используйте /order для заказа."
-    )
-    bot.send_message(message.chat.id, text)
+    # 1. Раздел: Прайс-лист
+    if call.data == "menu_pricing":
+        text = "💵 <b>Примерная стоимость разработки:</b>\n\n"
+        for key, service in SERVICES.items():
+            text += f"🔹 <b>{service['name']}</b> — от ${service['price']}\n"
+        
+        text += "\n<i>Точная стоимость рассчитывается индивидуально. Вы можете сразу заказать сайт или оплатить депозит.</i>"
+        
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("◀️ Назад в меню", callback_data="menu_main"))
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=markup)
 
-# Обработчик команды /contact
-@bot.message_handler(commands=['contact'])
-def send_contact(message):
-    text = "Для связи со мной и обсуждения проектов пишите мне напрямую: \n👉 @far_rux0"
-    bot.send_message(message.chat.id, text)
+    # 2. Раздел: Портфолио
+    elif call.data == "menu_portfolio":
+        text = "📁 <b>Мои работы и проекты</b>\n\nВы можете ознакомиться с моим стилем кода и готовыми проектами на GitHub."
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Перейти на GitHub 🌐", url="https://github.com/Farrux-Developer"))
+        markup.add(types.InlineKeyboardButton("◀️ Назад", callback_data="menu_main"))
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=markup)
 
-# Обработчик команды /order
-@bot.message_handler(commands=['order'])
-def order_website(message):
-    text = (
-        "🛒 Заказ сайта\n"
-        "Выберите тип сайта:\n"
-        "1️⃣ Landing Page - одностраничный сайт\n"
-        "2️⃣ Корпоративный сайт - многостраничный сайт компании\n"
-        "3️⃣ E-commerce - интернет-магазин\n"
-        "4️⃣ Portfolio - портфолио\n"
-        "5️⃣ Blog - блог\n"
-        "6️⃣ Frontend - только фронтенд\n"
-        "7️⃣ Custom - индивидуальный проект\n\n"
-        "Отправьте номер выбранного типа (1-7):"
-    )
-    msg = bot.send_message(message.chat.id, text)
-    # Переходим к следующему шагу — ожиданию ввода номера от пользователя
-    bot.register_next_step_handler(msg, process_order_step)
+    # 3. Раздел: Контакты
+    elif call.data == "menu_contact":
+        text = "📞 <b>Связь с разработчиком</b>\n\nЕсли у вас есть техническое задание, вопросы или нестандартный проект — пишите мне напрямую."
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Написать разработчику ✍️", url="https://t.me/far_rux0"))
+        markup.add(types.InlineKeyboardButton("◀️ Назад", callback_data="menu_main"))
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=markup)
 
-# Функция для обработки выбора пользователя (цифры 1-7)
-def process_order_step(message):
-    # Проверяем, что введена цифра от 1 до 7
-    if message.text in ['1', '2', '3', '4', '5', '6', '7']:
+    # 4. Раздел: Оформление заказа (Выбор типа)
+    elif call.data == "menu_order":
+        text = "🛒 <b>Выберите тип сайта, который вам нужен:</b>"
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        for key, service in SERVICES.items():
+            markup.add(types.InlineKeyboardButton(f"{service['name']} (от ${service['price']})", callback_data=f"buy_{key}"))
+        markup.add(types.InlineKeyboardButton("◀️ Назад", callback_data="menu_main"))
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=markup)
+
+    # 5. Возврат в главное меню
+    elif call.data == "menu_main":
+        text = "👋 Выберите нужный раздел:"
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=get_main_menu())
+
+    # 6. Подготовка к оплате конкретной услуги
+    elif call.data.startswith("buy_"):
+        service_key = call.data.split("_")[1]
+        service = SERVICES[service_key]
+        
         text = (
-            "✅ Отличный выбор!\n\n"
-            "Для обсуждения технического задания, сроков и финальной стоимости напишите мне лично: 👉 @far_rux0\n\n"
-            "После того как мы договоримся обо всех деталях и утвердим цену, я скину вам номер своего крипто-кошелька/карты для оплаты.\n"
-            "Сразу после получения оплаты я приступлю к разработке вашего сайта! 🚀"
+            f"✅ <b>Отличный выбор!</b>\n\n"
+            f"<b>Услуга:</b> {service['name']}\n"
+            f"<b>Описание:</b> {service['desc']}\n"
+            f"<b>Базовая стоимость:</b> ${service['price']}\n\n"
+            f"Вы можете оплатить базовую стоимость прямо сейчас через Telegram. "
+            f"Сразу после оплаты я свяжусь с вами для обсуждения дизайна и деталей."
         )
-        bot.send_message(message.chat.id, text)
-    else:
-        # Если ввели что-то другое
-        msg = bot.send_message(message.chat.id, "❌ Пожалуйста, отправьте только цифру от 1 до 7. Попробуйте еще раз:")
-        bot.register_next_step_handler(msg, process_order_step)
+        
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(types.InlineKeyboardButton("💳 Оплатить сейчас", callback_data=f"pay_{service_key}"))
+        markup.add(types.InlineKeyboardButton("Сначала обсудить с разработчиком ✍️", url="https://t.me/far_rux0"))
+        markup.add(types.InlineKeyboardButton("◀️ Назад к выбору", callback_data="menu_order"))
+        
+        bot.edit_message_text(text, chat_id, message_id, parse_mode='HTML', reply_markup=markup)
 
-# Запуск бота на постоянную работу (polling)
+    # 7. Выставление счета (Invoice)
+    elif call.data.startswith("pay_"):
+        if PROVIDER_TOKEN == 'ТВОЙ_ПЛАТЕЖНЫЙ_ТОКЕН_ИЗ_BOTFATHER':
+            bot.answer_callback_query(call.id, "Оплата временно недоступна. Не настроен токен провайдера.", show_alert=True)
+            return
+
+        service_key = call.data.split("_")[1]
+        service = SERVICES[service_key]
+        
+        # Переводим доллары в центы (Telegram принимает копейки/центы)
+        price_in_cents = int(service['price'] * 100) 
+        prices = [types.LabeledPrice(label=f"Разработка: {service['name']}", amount=price_in_cents)]
+        
+        bot.send_invoice(
+            chat_id=chat_id,
+            title=f"Заказ: {service['name']}",
+            description=service['desc'],
+            invoice_payload=f"invoice_{service_key}_{chat_id}",
+            provider_token=PROVIDER_TOKEN,
+            currency='USD', # Можно поменять на UZS или RUB в зависимости от провайдера
+            prices=prices,
+            start_parameter="web_order",
+            is_flexible=False
+        )
+        bot.answer_callback_query(call.id)
+
+# --- ПРОВЕРКА ПЛАТЕЖА (ОБЯЗАТЕЛЬНЫЙ ЭТАП TELEGRAM API) ---
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def checkout(pre_checkout_query):
+    # Здесь бот подтверждает, что готов принять платеж
+    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+# --- УСПЕШНАЯ ОПЛАТА ---
+@bot.message_handler(content_types=['successful_payment'])
+def got_payment(message):
+    payment_info = message.successful_payment
+    amount_paid = payment_info.total_amount / 100
+    currency = payment_info.currency
+    
+    # 1. Сообщаем клиенту
+    bot.send_message(
+        message.chat.id, 
+        f"🎉 <b>Успешно!</b>\n\nОплата в размере {amount_paid} {currency} получена.\n"
+        f"Огромное спасибо за заказ! Я уже получил уведомление и свяжусь с вами в ближайшее время.",
+        parse_mode='HTML',
+        reply_markup=get_main_menu()
+    )
+    
+    # 2. Уведомляем администратора (тебя)
+    username = message.from_user.username
+    contact_link = f"@{username}" if username else f"ID: {message.from_user.id}"
+    
+    admin_text = (
+        f"💰 <b>НОВЫЙ ЗАКАЗ И ОПЛАТА!</b>\n\n"
+        f"<b>Сумма:</b> {amount_paid} {currency}\n"
+        f"<b>Payload:</b> {payment_info.invoice_payload}\n"
+        f"<b>Клиент:</b> {contact_link}\n\n"
+        f"Свяжись с клиентом для начала работы!"
+    )
+    try:
+        bot.send_message(ADMIN_ID, admin_text, parse_mode='HTML')
+    except Exception as e:
+        print("Не удалось отправить уведомление админу. Проверь ADMIN_ID.")
+
+# Запуск
 if __name__ == '__main__':
-    print("Бот запущен и готов к работе...")
-    # non_stop=True позволяет боту не падать при мелких ошибках сети
+    print("Бот запущен и готов к работе с платежами...")
     bot.polling(none_stop=True)
