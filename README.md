@@ -1,1 +1,1 @@
-# Python-bot made to order websites
+# Python-bot made for make websites
