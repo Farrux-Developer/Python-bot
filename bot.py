@@ -1,15 +1,22 @@
+import os
 import telebot
 from telebot import types
+from dotenv import load_dotenv
+
+# Загружаем секретные данные из файла .env
+load_dotenv()
 
 # --- НАСТРОЙКИ БОТА ---
-TOKEN = '7652251280:AAED0e482EhSbiD6jnIyduDOZbXQMsqTNUo'
-# Токен провайдера оплат (Stripe, YooMoney, PayMaster и т.д. получаем в @BotFather)
-# Если пока нет токена для боевой оплаты, можно использовать тестовый (TEST).
-PROVIDER_TOKEN = 'ТВОЙ_ПЛАТЕЖНЫЙ_ТОКЕН_ИЗ_BOTFATHER' 
-ADMIN_ID = 'ТВОЙ_TELEGRAM_ID' # Твой ID (узнай его через @userinfobot), чтобы получать уведомления об оплате
+# Берем данные из переменных окружения
+TOKEN = os.getenv('BOT_TOKEN')
+PROVIDER_TOKEN = os.getenv('PROVIDER_TOKEN')
+ADMIN_ID = os.getenv('ADMIN_ID')
+
+# Проверка, что токен загрузился (чтобы бот не падал без причины)
+if not TOKEN:
+    raise ValueError("ОШИБКА: Токен бота не найден! Проверьте файл .env")
 
 bot = telebot.TeleBot(TOKEN)
-
 # --- БАЗА ДАННЫХ УСЛУГ (Прайс-лист) ---
 SERVICES = {
     'landing': {'name': 'Landing Page', 'price': 50, 'desc': 'Одностраничный сайт с высокой конверсией. Идеально для продажи одного продукта или услуги.'},
