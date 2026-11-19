@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    container_name: weborder_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./weborder_bot.db:/app/weborder_bot.db
+      - ./bot.log:/app/bot.log

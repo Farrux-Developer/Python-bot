@@ -1,3 +1,26 @@
-.env
-bot.log
+# Virtual Environment
 venv/
+.venv/
+env/
+
+# Environment Variables & Secrets
+.env
+
+# Logs
+*.log
+bot.log
+
+# SQLite Database
+*.db
+*.sqlite3
+*.db-journal
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & Editor Configs
+.vscode/
+.idea/
+*.swp
